@@ -1,1 +1,10 @@
+services:
+  - type: web
+    name: sticky-add-to-cart-bar-pro
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
+    branch: main
 
