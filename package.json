@@ -1,14 +1,16 @@
 {
   "name": "sticky-add-to-cart-bar-pro",
   "version": "1.0.0",
-  "description": "Simple Shopify app to show a sticky add-to-cart bar",
+  "description": "Sticky Add-to-Cart Bar Shopify App",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "cookie-parser": "^1.4.6",
+    "crypto": "^1.0.1"
   }
 }
-
