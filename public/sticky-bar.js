@@ -46,7 +46,6 @@
     border-radius: 4px;
   `;
 
-  // Append controls to bar
   bar.appendChild(minusBtn);
   bar.appendChild(qtyInput);
   bar.appendChild(plusBtn);
@@ -64,11 +63,23 @@
     qtyInput.value = val + 1;
   });
 
+  // ======= Update Shopify Cart Count in Header =======
+  function updateCartCount() {
+    fetch('/cart.js')
+      .then(res => res.json())
+      .then(data => {
+        let countElements = document.querySelectorAll('.shopify-cart-count, .cart-count, .site-header-cart-count');
+        countElements.forEach(el => el.innerText = data.item_count);
+      })
+      .catch(err => console.error('Cart count error:', err));
+  }
+
+  // Initial cart count update
+  updateCartCount();
+
   // ======= AJAX Add to Cart =======
   addBtn.addEventListener('click', function() {
     const qty = parseInt(qtyInput.value, 10);
-
-    // Try to find the variant ID from the page
     let variantInput = document.querySelector('form[action^="/cart/add"] input[name="id"]');
     if (!variantInput) {
       alert('Product variant not found!');
@@ -84,6 +95,7 @@
     .then(res => res.json())
     .then(data => {
       addBtn.innerText = 'Added!';
+      updateCartCount(); // Update cart count dynamically
       setTimeout(() => { addBtn.innerText = 'Add to Cart'; }, 1500);
     })
     .catch(err => {
@@ -92,7 +104,7 @@
     });
   });
 
-  // ======= Optional: Hide bar on non-product pages =======
+  // ======= Hide on Non-Product Pages =======
   if (!window.location.pathname.includes('/products/')) {
     bar.style.display = 'none';
   }
