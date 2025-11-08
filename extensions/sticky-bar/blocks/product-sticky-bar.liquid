@@ -1,6 +1,16 @@
 {% comment %}
-  Inject sticky-bar.js on product pages automatically.
+  Sticky Add to Cart Bar – injected via app block on product pages
 {% endcomment %}
-{% if template.name contains 'product' %}
-  <script src="{{ 'sticky-bar.js' | asset_url }}" defer></script>
-{% endif %}
+
+<div id="sticky-add-to-cart-bar-container"></div>
+
+<script src="{{ shop.metafields.sticky_bar.host }}/sticky-bar.js" defer></script>
+
+{% schema %}
+{
+  "name": "Sticky Add to Cart Bar",
+  "target": "section",
+  "templates": ["product"],
+  "settings": []
+}
+{% endschema %}
