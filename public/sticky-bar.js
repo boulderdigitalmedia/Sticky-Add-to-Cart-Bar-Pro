@@ -1,9 +1,7 @@
 (function() {
   document.addEventListener('DOMContentLoaded', async () => {
-    // Only run on product pages
     if (!window.location.pathname.includes('/products/')) return;
 
-    // Get product handle from URL
     const pathParts = window.location.pathname.split('/products/');
     if (pathParts.length < 2) return;
     const productHandle = pathParts[1];
@@ -12,11 +10,9 @@
       const res = await fetch(`/products/${productHandle}.js`);
       if (!res.ok) return;
       const product = await res.json();
-
-      // Check if variants exist
       if (!product.variants || product.variants.length === 0) return;
 
-      // Build sticky bar
+      // --- Sticky Bar ---
       const bar = document.createElement('div');
       bar.id = 'sticky-bar';
       bar.style.cssText = `
@@ -59,10 +55,26 @@
         font-size: 15px;
       `;
 
+      // --- Sync with page variant selector ---
+      const themeVariantSelector = document.querySelector('form[action*="/cart/add"] select');
+      if (themeVariantSelector) {
+        // Update sticky bar when main selector changes
+        themeVariantSelector.addEventListener('change', () => {
+          variantSelect.value = themeVariantSelector.value;
+        });
+
+        // Update main selector when sticky bar changes
+        variantSelect.addEventListener('change', () => {
+          themeVariantSelector.value = variantSelect.value;
+          themeVariantSelector.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      }
+
       addBtn.addEventListener('click', async () => {
         const variantId = variantSelect.value;
         const quantity = 1;
 
+        // Use Shopify AJAX API to add to cart
         const response = await fetch('/cart/add.js', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -72,8 +84,13 @@
         if (response.ok) {
           addBtn.textContent = 'Added!';
           setTimeout(() => (addBtn.textContent = 'Add to Cart'), 1500);
+
+          // Optionally refresh cart drawer if theme has one
+          if (typeof window.Shopify && Shopify?.cart) {
+            Shopify.cart.update();
+          }
         } else {
-          alert('There was an issue adding to the cart.');
+          alert('Failed to add item to cart.');
         }
       });
 
