@@ -1,8 +1,22 @@
 (function() {
-  // Check if we are on a product page
-  if (!window.meta || !window.meta.product) return;
+  let product;
 
-  const product = window.meta.product;
+  // 1️⃣ Try window.meta
+  if (window.meta && window.meta.product) {
+    product = window.meta.product;
+  } else {
+    // 2️⃣ Fallback: look for JSON script tag
+    const jsonScript = document.querySelector('script[type="application/json"][id^="ProductJson"]');
+    if (jsonScript) {
+      try {
+        product = JSON.parse(jsonScript.innerHTML);
+      } catch (err) {
+        console.error("Failed to parse product JSON:", err);
+      }
+    }
+  }
+
+  if (!product) return; // cannot find product, stop script
 
   // Create sticky bar container
   const bar = document.createElement("div");
@@ -26,13 +40,15 @@
   // Variant selector
   const variantSelect = document.createElement("select");
   variantSelect.style.padding = "5px";
-  product.variants.forEach(variant => {
-    const option = document.createElement("option");
-    option.value = variant.id;
-    option.textContent = variant.title + (variant.available ? "" : " (Sold Out)");
-    option.disabled = !variant.available;
-    variantSelect.appendChild(option);
-  });
+  if (product.variants && product.variants.length) {
+    product.variants.forEach(variant => {
+      const option = document.createElement("option");
+      option.value = variant.id;
+      option.textContent = variant.title + (variant.available ? "" : " (Sold Out)");
+      option.disabled = !variant.available;
+      variantSelect.appendChild(option);
+    });
+  }
   bar.appendChild(variantSelect);
 
   // Quantity input
@@ -57,10 +73,9 @@
   `;
   bar.appendChild(addButton);
 
-  // Append the bar to the body
   document.body.appendChild(bar);
 
-  // Add-to-cart click handler
+  // Add-to-cart click
   addButton.addEventListener("click", async () => {
     const variantId = variantSelect.value;
     const quantity = parseInt(qtyInput.value, 10) || 1;
@@ -76,7 +91,7 @@
       alert(`Added to cart: ${data.title} x${quantity}`);
     } catch (err) {
       console.error("Add-to-cart failed", err);
-      alert("Something went wrong adding the product to the cart.");
+      alert("Failed to add to cart");
     }
   });
 })();
