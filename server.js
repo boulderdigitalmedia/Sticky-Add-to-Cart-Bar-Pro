@@ -12,13 +12,15 @@ const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.SHOPIFY_API_KEY;
 const API_SECRET = process.env.SHOPIFY_API_SECRET;
 const SCOPES = process.env.SCOPES || "write_script_tags,read_products";
-const HOST = process.env.HOST || "https://sticky-add-to-cart-bar-pro.onrender.com";
+const HOST = process.env.HOST; // e.g., https://sticky-add-to-cart-bar-pro.onrender.com
 
 // Setup paths
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(cookieParser());
+
+// Serve all files in public folder at root path
 app.use(express.static(path.join(__dirname, "public")));
 
 // ================= Health Check =================
@@ -27,12 +29,10 @@ app.get("/health", (req, res) => {
 });
 
 // ================= Root Route =================
+// Redirect to /auth for embedded app
 app.get("/", (req, res) => {
   const { shop, host } = req.query;
-  if (!shop || !host)
-    return res
-      .status(400)
-      .send("Missing shop or host query parameters in request");
+  if (!shop || !host) return res.status(400).send("Missing shop or host query parameters");
 
   const redirectUrl = `/auth?shop=${shop}&host=${encodeURIComponent(host)}`;
   res.redirect(redirectUrl);
@@ -53,10 +53,7 @@ app.get("/auth", (req, res) => {
 
 // Step 2: OAuth callback
 app.get("/auth/callback", async (req, res) => {
-  const { shop, code, hmac, host } = req.query;
-
-  if (!shop || !code || !hmac)
-    return res.status(400).send("Missing required parameters");
+  const { shop, code, hmac, state } = req.query;
 
   // Validate HMAC
   const map = { ...req.query };
@@ -66,61 +63,42 @@ app.get("/auth/callback", async (req, res) => {
     .map((key) => `${key}=${map[key]}`)
     .join("&");
 
-  const generatedHash = crypto
-    .createHmac("sha256", API_SECRET)
-    .update(message)
-    .digest("hex");
+  const generatedHash = crypto.createHmac("sha256", API_SECRET).update(message).digest("hex");
+  if (generatedHash !== hmac) return res.status(400).send("HMAC validation failed");
 
-  if (generatedHash !== hmac)
-    return res.status(400).send("HMAC validation failed");
+  // Exchange code for access token
+  const tokenResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_id: API_KEY, client_secret: API_SECRET, code }),
+  });
 
-  try {
-    // Exchange code for access token
-    const tokenResponse = await fetch(
-      `https://${shop}/admin/oauth/access_token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_id: API_KEY,
-          client_secret: API_SECRET,
-          code,
-        }),
-      }
-    );
+  const tokenData = await tokenResponse.json();
+  const accessToken = tokenData.access_token;
 
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-    if (!accessToken) throw new Error("Missing access token");
+  // Store token in cookies (demo only; in production use DB)
+  res.cookie("shop", shop, { maxAge: 900000 });
+  res.cookie("accessToken", accessToken, { maxAge: 900000 });
 
-    // Inject Sticky Bar ScriptTag
-    await fetch(`https://${shop}/admin/api/2025-01/script_tags.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": accessToken,
+  // ================= Inject ScriptTag =================
+  // Serve sticky-bar.js at root path
+  const scriptTagUrl = `${HOST}/sticky-bar.js`;
+
+  await fetch(`https://${shop}/admin/api/2025-01/script_tags.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": accessToken,
+    },
+    body: JSON.stringify({
+      script_tag: {
+        event: "onload",
+        src: scriptTagUrl,
       },
-      body: JSON.stringify({
-        script_tag: {
-          event: "onload",
-          src: `${HOST}/public/sticky-bar.js`,
-        },
-      }),
-    });
+    }),
+  });
 
-    // Embedded redirect (fix session expired)
-    const embeddedRedirect = `
-      <script type="text/javascript">
-        const host = "${host}";
-        const redirectUrl = "/apps?shop=${shop}&host=" + encodeURIComponent(host);
-        window.top.location.href = redirectUrl;
-      </script>
-    `;
-    res.send(embeddedRedirect);
-  } catch (error) {
-    console.error("OAuth callback error:", error);
-    res.status(500).send("App installation failed. Check server logs.");
-  }
+  res.send("App installed and sticky bar injected! ✅");
 });
 
 // ================= Embedded Admin =================
@@ -129,6 +107,4 @@ app.get("/apps", (req, res) => {
 });
 
 // ================= Server Root =================
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
