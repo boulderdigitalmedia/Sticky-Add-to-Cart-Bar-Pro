@@ -1,117 +1,131 @@
-(function() {
-  function initStickyBar() {
+(function () {
+  // Utility: wait for element to exist
+  function waitForElement(selector, timeout = 5000) {
+    return new Promise((resolve, reject) => {
+      const interval = 100;
+      let elapsed = 0;
+      const timer = setInterval(() => {
+        const el = document.querySelector(selector);
+        if (el) {
+          clearInterval(timer);
+          resolve(el);
+        } else if ((elapsed += interval) >= timeout) {
+          clearInterval(timer);
+          reject("Element not found: " + selector);
+        }
+      }, interval);
+    });
+  }
+
+  // Get product JSON from Shopify
+  async function getProductJson() {
+    const meta = document.querySelector('meta[name="shopify-digital-product-json"]');
+    if (meta) return JSON.parse(meta.content);
+    // fallback: use window.ProductJSON if available
+    return window.productJson || null;
+  }
+
+  // Create sticky bar
+  function createStickyBar(product) {
+    if (!product) return;
+    const bar = document.createElement("div");
+    bar.id = "sticky-add-to-cart-bar";
+    bar.style = `
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #222;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      z-index: 9999;
+      font-family: sans-serif;
+    `;
+
+    // Product info
+    const info = document.createElement("div");
+    info.innerHTML = `<strong>${product.title}</strong> - <span id="sticky-price">${formatMoney(product.price)}</span>`;
+    bar.appendChild(info);
+
+    // Variant selector if multiple
+    let variantSelect = null;
+    if (product.variants && product.variants.length > 1) {
+      variantSelect = document.createElement("select");
+      variantSelect.id = "sticky-variant-select";
+      product.variants.forEach((v) => {
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = `${v.title} - ${formatMoney(v.price)}`;
+        variantSelect.appendChild(opt);
+      });
+      bar.appendChild(variantSelect);
+    }
+
+    // Add to cart button
+    const btn = document.createElement("button");
+    btn.textContent = "Add to Cart";
+    btn.style = `
+      background: #ff6f61;
+      border: none;
+      padding: 10px 20px;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+    `;
+    bar.appendChild(btn);
+
+    // Append to body
+    document.body.appendChild(bar);
+
+    // Button click handler
+    btn.addEventListener("click", async () => {
+      const variantId = variantSelect ? variantSelect.value : product.variants[0].id;
+      await addToCart(variantId, 1);
+      btn.textContent = "✅ Added!";
+      setTimeout(() => (btn.textContent = "Add to Cart"), 2000);
+    });
+  }
+
+  // Add item to Shopify cart via AJAX
+  async function addToCart(variantId, quantity) {
     try {
-      // Only run on product pages
-      const productHandle = document.querySelector('meta[name="shopify-product-handle"]')?.content;
-      if (!productHandle) return;
-
-      fetch(`/products/${productHandle}.js`)
-        .then(res => res.json())
-        .then(product => {
-          if (!product || !product.variants || product.variants.length === 0) return;
-
-          // Prevent multiple bars
-          if (document.getElementById('sticky-bar')) return;
-
-          const bar = document.createElement('div');
-          bar.id = 'sticky-bar';
-          bar.style.cssText = `
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: #fff;
-            border-top: 1px solid #ddd;
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px;
-            z-index: 9999;
-            font-family: sans-serif;
-          `;
-
-          // Product title
-          const title = document.createElement('span');
-          title.textContent = product.title;
-
-          // Variant selector
-          const variantSelect = document.createElement('select');
-          product.variants.forEach(v => {
-            const opt = document.createElement('option');
-            opt.value = v.id;
-            opt.textContent = v.title + (v.available ? '' : ' (Sold out)');
-            opt.disabled = !v.available;
-            variantSelect.appendChild(opt);
-          });
-
-          // Add to Cart button
-          const addBtn = document.createElement('button');
-          addBtn.textContent = 'Add to Cart';
-          addBtn.style.cssText = `
-            background: #1a73e8;
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 15px;
-          `;
-
-          // Sync with theme variant selector if exists
-          const themeVariantSelector = document.querySelector('form[action*="/cart/add"] select');
-          if (themeVariantSelector) {
-            themeVariantSelector.addEventListener('change', () => {
-              variantSelect.value = themeVariantSelector.value;
-            });
-            variantSelect.addEventListener('change', () => {
-              themeVariantSelector.value = variantSelect.value;
-              themeVariantSelector.dispatchEvent(new Event('change', { bubbles: true }));
-            });
-          }
-
-          // Add to cart functionality
-          addBtn.addEventListener('click', async () => {
-            const variantId = variantSelect.value;
-            const quantity = 1;
-
-            try {
-              const response = await fetch('/cart/add.js', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: variantId, quantity }),
-              });
-
-              if (response.ok) {
-                addBtn.textContent = 'Added!';
-                setTimeout(() => (addBtn.textContent = 'Add to Cart'), 1500);
-              } else {
-                const err = await response.json();
-                alert(err.description || 'Failed to add to cart');
-              }
-            } catch (err) {
-              console.error('Add to cart error:', err);
-              alert('Failed to add to cart');
-            }
-          });
-
-          // Build bar
-          bar.appendChild(title);
-          bar.appendChild(variantSelect);
-          bar.appendChild(addBtn);
-          document.body.appendChild(bar);
-        })
-        .catch(err => console.error('Sticky bar fetch error:', err));
-
-    } catch (e) {
-      console.error('Sticky bar init error:', e);
+      await fetch("/cart/add.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: variantId, quantity: quantity }),
+      });
+    } catch (err) {
+      console.error("Add to cart failed", err);
     }
   }
 
-  // Run after DOM ready
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    initStickyBar();
+  // Format Shopify money
+  function formatMoney(cents) {
+    if (!cents) return "";
+    return `$${(cents / 100).toFixed(2)}`;
+  }
+
+  // Initialize sticky bar
+  async function init() {
+    try {
+      const product = await getProductJson();
+      if (!product) {
+        console.warn("Sticky bar: product JSON not found");
+        return;
+      }
+      createStickyBar(product);
+    } catch (err) {
+      console.error("Sticky bar init failed", err);
+    }
+  }
+
+  // Wait for DOM ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    document.addEventListener('DOMContentLoaded', initStickyBar);
+    init();
   }
 })();
