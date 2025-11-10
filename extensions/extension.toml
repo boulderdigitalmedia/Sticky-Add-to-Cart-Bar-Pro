@@ -1,8 +1,2 @@
 name = "Sticky Add To Cart Bar"
 type = "theme"
-
-[[blocks]]
-name = "Sticky Add To Cart Bar"
-target = "section"
-templates = ["product"]
-file = "sticky-add-to-cart-bar.liquid"
