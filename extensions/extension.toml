@@ -1,7 +1,8 @@
 name = "Sticky Add To Cart Bar"
 type = "theme"
 
-[extension_points]
-  blocks = ["product"]
-
-[settings]
+[[blocks]]
+name = "Sticky Add To Cart Bar"
+target = "section"
+templates = ["product"]
+file = "product-sticky-bar.liquid"
