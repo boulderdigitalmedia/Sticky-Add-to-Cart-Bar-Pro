@@ -5,4 +5,4 @@ type = "theme"
 name = "Sticky Add To Cart Bar"
 target = "section"
 templates = ["product"]
-file = "product-sticky-bar.liquid"
+file = "sticky-add-to-cart-bar.liquid"
