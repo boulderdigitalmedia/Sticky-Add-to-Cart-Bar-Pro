@@ -1,2 +1,5 @@
-name = "sticky-bar"
+name = "Sticky Add To Cart Bar"
 type = "theme"
+
+[extension_points]
+body = "blocks/sticky-add-to-cart-bar"
