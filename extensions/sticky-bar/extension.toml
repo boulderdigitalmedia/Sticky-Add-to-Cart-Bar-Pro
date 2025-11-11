@@ -1,4 +1,5 @@
 name = "Sticky Add To Cart Bar"
 type = "theme"
 
-[settings]
+[extension_points]
+body = "snippets/sticky-add-to-cart-bar"
