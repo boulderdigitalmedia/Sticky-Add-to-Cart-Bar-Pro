@@ -9,12 +9,11 @@ embedded = true
 api_version = "2025-10"
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,read_script_tags,write_script_tags,read_themes,write_themes"
-optional_scopes = [ ]
-use_legacy_install_flow = true
+scopes = "write_themes,read_themes"
 
 [auth]
-redirect_urls = [
-  "https://sticky-add-to-cart-bar-pro.onrender.com/auth/callback"
-]
+redirect_urls = ["https://your-app-domain.com/auth/callback"]
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "your-dev-store.myshopify.com"
