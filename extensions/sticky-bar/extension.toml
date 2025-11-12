@@ -2,4 +2,4 @@ name = "Sticky Add To Cart Bar"
 type = "theme"
 
 [extension_points]
-theme = ["app-embed"]
+app_embed = "snippets/sticky-add-to-cart-bar"
