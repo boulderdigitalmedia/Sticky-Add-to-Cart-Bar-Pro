@@ -1,15 +1,11 @@
 {
   "name": "sticky-add-to-cart-bar-pro",
   "version": "1.0.0",
-  "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "build": "shopify app build",
+    "deploy": "shopify app deploy"
   },
-  "dependencies": {
-    "express": "^4.19.2",
-    "cookie-parser": "^1.4.6",
-    "node-fetch": "^3.3.2",
-    "crypto": "^1.0.1",
-    "dotenv": "^16.4.5"
+  "engines": {
+    "node": ">=20"
   }
 }
