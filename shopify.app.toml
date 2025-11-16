@@ -1,19 +1,17 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+name = "BDM Sticky Add to Cart Bar"
+client_id = "YOUR_SHOPIFY_APP_API_KEY"
 
-client_id = "624b866762bfee0ffea282573cfc8539"
-name = "Sticky Add-to-Cart Bar Pro"
-application_url = "https://sticky-add-to-cart-bar-pro.onrender.com"
+application_url = "https://YOUR_DEPLOYED_URL"
 embedded = true
 
-[webhooks]
-api_version = "2025-10"
-
-[access_scopes]
-scopes = "write_themes,read_themes"
-
 [auth]
-redirect_urls = ["https://your-app-domain.com/auth/callback"]
+redirect_urls = [
+  "https://YOUR_DEPLOYED_URL/auth/callback",
+  "https://YOUR_DEPLOYED_URL/auth/shopify/callback"
+]
 
-[build]
-automatically_update_urls_on_dev = true
-dev_store_url = "your-dev-store.myshopify.com"
+[webhooks]
+api_version = "2024-10"
+
+[pos]
+embedded = false
