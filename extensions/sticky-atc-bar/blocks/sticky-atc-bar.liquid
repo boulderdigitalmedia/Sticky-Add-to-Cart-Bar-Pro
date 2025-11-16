@@ -1,0 +1,198 @@
+{%- comment -%}
+  Sticky Add to Cart Bar - Boulder Digital Media
+  App Embed Block (full-width, product pages only)
+{%- endcomment -%}
+
+{%- if template.name contains 'product' and product -%}
+  <div 
+    id="bdm-sticky-atc-bar"
+    class="bdm-sticky-atc-bar"
+    data-product="{{ product | json | escape }}"
+    data-product-id="{{ product.id }}"
+    data-has-subscriptions="{{ product.selling_plan_groups.size > 0 }}"
+  >
+    <div class="bdm-sticky-atc-bar__inner">
+      <div class="bdm-sticky-atc-bar__info">
+        <div class="bdm-sticky-atc-bar__title">
+          {{ product.title }}
+        </div>
+
+        <div class="bdm-sticky-atc-bar__price" id="bdm-sticky-atc-price">
+          {%- assign first_available_variant = product.variants | where: 'available', true | first -%}
+          {%- if first_available_variant -%}
+            <span class="bdm-sticky-atc-price__current">
+              {{ first_available_variant.price | money }}
+            </span>
+            {%- if first_available_variant.compare_at_price > first_available_variant.price -%}
+              <span class="bdm-sticky-atc-price__compare">
+                {{ first_available_variant.compare_at_price | money }}
+              </span>
+            {%- endif -%}
+          {%- else -%}
+            <span class="bdm-sticky-atc-price__current">
+              {{ product.price | money }}
+            </span>
+          {%- endif -%}
+        </div>
+      </div>
+
+      <div class="bdm-sticky-atc-bar__controls">
+
+        {%- if product.has_only_default_variant == false -%}
+          <div class="bdm-sticky-atc-variants">
+            {%- for option in product.options_with_values -%}
+              <div class="bdm-sticky-atc-variant">
+                <label class="bdm-sticky-atc-variant__label">
+                  {{ option.name }}
+                </label>
+                <select 
+                  class="bdm-sticky-atc-variant__select" 
+                  data-option-position="{{ option.position }}"
+                >
+                  {%- for value in option.values -%}
+                    <option value="{{ value | escape }}"
+                      {%- if option.selected_value == value -%}selected{%- endif -%}
+                    >
+                      {{ value }}
+                    </option>
+                  {%- endfor -%}
+                </select>
+              </div>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+
+        <div class="bdm-sticky-atc-qty">
+          <button type="button" class="bdm-sticky-atc-qty__btn" data-action="decrement">-</button>
+          <input 
+            type="number"
+            min="1"
+            value="1"
+            class="bdm-sticky-atc-qty__input"
+            id="bdm-sticky-atc-qty-input"
+          />
+          <button type="button" class="bdm-sticky-atc-qty__btn" data-action="increment">+</button>
+        </div>
+
+        <button 
+          type="button" 
+          class="bdm-sticky-atc-button"
+          id="bdm-sticky-atc-button"
+          data-free-plan-branding="{{ settings.show_branding }}"
+        >
+          {{ settings.button_label }}
+        </button>
+      </div>
+    </div>
+
+    {%- if settings.show_branding -%}
+      <div class="bdm-sticky-atc-branding">
+        Powered by <a href="https://boulderdigitalmedia.com" target="_blank" rel="noopener">Boulder Digital Media</a>
+      </div>
+    {%- endif -%}
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Sticky Add to Cart Bar",
+  "target": "body",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "javascript": "sticky-atc-bar.js",
+  "stylesheet": "sticky-atc-bar.css",
+  "settings": [
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "Add to cart"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_quantity",
+      "label": "Show quantity selector",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price",
+      "label": "Show product price",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_variants",
+      "label": "Show variant selector",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_only_when_main_atc_hidden",
+      "label": "Show only when main Add to cart is off-screen",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Bar background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#111827"
+    },
+    {
+      "type": "color",
+      "id": "button_background_color",
+      "label": "Button background color",
+      "default": "#111827"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "bar_height",
+      "label": "Bar height (px)",
+      "min": 48,
+      "max": 120,
+      "step": 4,
+      "default": 72
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "Button border radius (px)",
+      "min": 0,
+      "max": 30,
+      "step": 2,
+      "default": 999
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_desktop",
+      "label": "Show on desktop",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_mobile",
+      "label": "Show on mobile",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_branding",
+      "label": "Show “Powered by Boulder Digital Media”",
+      "default": true
+    }
+  ]
+}
+{% endschema %}
