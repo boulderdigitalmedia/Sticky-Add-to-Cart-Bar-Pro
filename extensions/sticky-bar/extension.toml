@@ -1,5 +1,0 @@
-name = "Sticky Add To Cart Bar"
-type = "theme"
-
-[extension_points]
-app_embed = "snippets/sticky-add-to-cart-bar"
