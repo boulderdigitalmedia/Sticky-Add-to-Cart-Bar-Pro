@@ -1,11 +1,11 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("postgresql://bdm_sticky_atc_db_user:JyqmaccTY3prct3Pr3KKi4Y3dJ7nVjU8@dpg-d4cnvnn5r7bs73ahkgeg-a.oregon-postgres.render.com/bdm_sticky_atc_db")
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
 
-generator client {
-  provider = "prisma-client-js"
-  engineType = "binary"
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model StickyEvent {
