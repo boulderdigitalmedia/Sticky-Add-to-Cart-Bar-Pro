@@ -17,9 +17,9 @@ jobs:
       with:
         node-version: 18
 
-    - name: Install Shopify CLI
+    - name: Install Shopify CLI (latest)
       run: |
-        npm install -g @shopify/cli @shopify/app
+        npm install -g @shopify/cli@latest @shopify/app@latest
 
     - name: Deploy App + Extensions
       env:
