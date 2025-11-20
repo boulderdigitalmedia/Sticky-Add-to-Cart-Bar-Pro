@@ -24,6 +24,6 @@ jobs:
     - name: Deploy App + Extensions
       env:
         SHOPIFY_CLI_PARTNERS_TOKEN: ${{ secrets.SHOPIFY_CLI_PARTNERS_TOKEN }}
-        SHOPIFY_FLAG_STORE: ${{ secrets.SHOPIFY_FLAG_STORE }}  # bdm-staging.myshopify.com
+        SHOPIFY_FLAG_STORE: ${{ secrets.SHOPIFY_FLAG_STORE }}
       run: |
-        shopify app deploy --no-interaction
+        shopify app deploy --force
