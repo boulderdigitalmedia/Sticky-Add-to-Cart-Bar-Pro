@@ -1,144 +1,133 @@
-/* ---------------- BASE BAR CONTAINER ---------------- */
+/* === CONTAINER === */
 .bdm-sticky-atc-bar-container {
   position: fixed;
   bottom: 0;
+  left: 0;
   width: 100%;
   background: #111;
-  border-top: 1px solid rgba(255,255,255,0.1);
-  z-index: 999999;
+  z-index: 99999;
+  border-top: 1px solid #333;
+  padding: 12px 14px;
 }
 
+/* MOBILE: smaller vertical footprint */
+@media (max-width: 768px) {
+  .bdm-sticky-atc-bar-container {
+    padding: 8px 10px;
+  }
+}
+
+/* === INNER FLEX === */
 .bdm-sticky-atc-bar-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  max-width: 1100px;
-  margin: auto;
-  gap: 20px;
+  gap: 14px;
 }
 
-/* ---------------- PRODUCT INFO ---------------- */
+/* MOBILE STACK */
+@media (max-width: 768px) {
+  .bdm-sticky-atc-bar-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+}
+
+/* === PRODUCT INFO === */
 .bdm-sticky-atc-product {
   display: flex;
   flex-direction: column;
-  color: white;
-  font-size: 16px;
+  line-height: 1.2;
 }
 
 .bdm-sticky-atc-title {
-  font-weight: 700;
-  font-size: 18px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: white;
 }
 
 .bdm-sticky-atc-price {
-  font-size: 18px;
-  margin-top: 4px;
+  font-size: 1.2rem;
+  color: white;
 }
 
-/* ---------------- VARIANT SELECTOR ---------------- */
+/* MOBILE: tighter spacing */
+@media (max-width: 768px) {
+  .bdm-sticky-atc-title {
+    font-size: 1rem;
+  }
+  .bdm-sticky-atc-price {
+    font-size: 1rem;
+  }
+}
+
+/* === VARIANT SELECTOR === */
 .bdm-sticky-atc-variant-select {
-  padding: 12px;
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
   border-radius: 8px;
   border: 1px solid #444;
-  background: #fff;
-  font-size: 16px;
-  min-width: 160px;
+  background: #1a1a1a;
+  color: white;
 }
 
-/* ---------------- QUANTITY STEPPER ---------------- */
+/* === QUANTITY CONTROLS === */
 .bdm-sticky-atc-qty {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.bdm-sticky-atc-qty-btn {
-  width: 42px;
-  height: 42px;
+.bdm-qty-btn {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  border: 1px solid #666;
+  font-size: 28px;
+  border: 2px solid white;
   background: transparent;
   color: white;
-  font-size: 26px;
-  line-height: 1;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.bdm-sticky-atc-qty-input {
-  width: 55px;
-  height: 45px;
+.bdm-qty-input {
+  width: 60px;
+  height: 44px;
+  font-size: 1.3rem;
   text-align: center;
-  font-size: 18px;
   border-radius: 10px;
-  border: none;
+  border: 2px solid white;
   background: white;
-}
+  color: black;
 
-/* Remove browser number arrows */
-.bdm-sticky-atc-qty-input::-webkit-inner-spin-button,
-.bdm-sticky-atc-qty-input::-webkit-outer-spin-button {
+  /* REMOVE SPINNERS */
   -webkit-appearance: none;
-  margin: 0;
-}
-.bdm-sticky-atc-qty-input {
   -moz-appearance: textfield;
 }
 
-/* ---------------- ADD TO CART BUTTON ---------------- */
+/* === ADD TO CART BUTTON === */
 .bdm-sticky-atc-button {
-  background: #56d364;
+  background: #65d06e;
+  color: black;
+  padding: 12px 24px;
+  font-size: 1.4rem;
+  font-weight: bold;
   border-radius: 50px;
   border: none;
-  padding: 16px 26px;
-  font-size: 18px;
-  font-weight: 700;
-  color: black;
   cursor: pointer;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* ---------------- CONTROLS WRAPPER ---------------- */
-.bdm-sticky-atc-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-/* ---------------- MOBILE RESPONSIVE ---------------- */
-@media (max-width: 749px) {
-  .bdm-sticky-atc-bar-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-    padding: 16px;
-  }
-
-  .bdm-sticky-atc-product {
-    text-align: left;
-  }
-
-  .bdm-sticky-atc-controls {
-    display: grid;
-    width: 100%;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 12px;
-  }
-
-  .bdm-sticky-atc-variant-select {
-    width: 100%;
-  }
-
+/* MOBILE: reduce padding */
+@media (max-width: 768px) {
   .bdm-sticky-atc-button {
     width: 100%;
-    font-size: 18px;
-    padding: 14px;
-    border-radius: 12px;
-  }
-
-  .bdm-sticky-atc-qty {
-    justify-content: center;
+    padding: 10px;
+    font-size: 1.2rem;
+    border-radius: 40px;
   }
 }
