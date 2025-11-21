@@ -1,7 +1,8 @@
-// Sticky Add to Cart Bar JS (mobile optimized, desktop preserved)
+// Sticky Add to Cart Bar JS (mobile + desktop optimized)
 (function () {
   function updateCartIconAndDrawer() {
     document.dispatchEvent(new CustomEvent("cart:refresh"));
+
     if (window.fetchCart) window.fetchCart();
     if (window.updateCart) window.updateCart();
 
@@ -23,7 +24,12 @@
     const productForm = document.querySelector('form[action*="/cart/add"]');
     if (!productForm) return;
 
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+
+    const productTitle = root.dataset.productTitle;
     let variants = window.ShopifyAnalytics?.meta?.product?.variants || [];
+    const hasVariants = variants.length > 1;
+
     const variantSelect = productForm.querySelector("select[name='id']");
     let currentVariantId = variantSelect ? variantSelect.value : variants[0]?.id;
 
@@ -35,37 +41,37 @@
       });
 
     let currentPrice = findVariantById(currentVariantId)?.price;
-    const titleText = root.dataset.productTitle;
 
-    /* BAR CONTAINER */
+    // BAR CONTAINER
     const bar = document.createElement("div");
     bar.className = "bdm-sticky-atc-bar-container";
 
     const inner = document.createElement("div");
     inner.className = "bdm-sticky-atc-bar-inner";
 
-    /* PRODUCT INFO */
+    // PRODUCT INFO
     const productInfo = document.createElement("div");
     productInfo.className = "bdm-sticky-atc-product";
 
-    const titleEl = document.createElement("div");
-    titleEl.className = "bdm-sticky-atc-title";
-    titleEl.textContent = titleText;
+    // Mobile: hide title when variants exist
+    const hideTitle = isMobile && hasVariants ? "bdm-hide" : "";
 
-    const priceEl = document.createElement("div");
-    priceEl.className = "bdm-sticky-atc-price";
-    priceEl.textContent = formatMoney(currentPrice);
+    productInfo.innerHTML = `
+      <div class="bdm-sticky-atc-title ${hideTitle}">
+        ${productTitle}
+      </div>
+      <div class="bdm-sticky-atc-price">${formatMoney(currentPrice)}</div>
+    `;
 
-    productInfo.append(titleEl, priceEl);
-
-    /* CONTROLS WRAPPER */
-    const controls = document.createElement("div");
-    controls.className = "bdm-sticky-atc-controls";
-
-    /* VARIANT SELECTOR */
+    // -------------------------
+    // VARIANT SELECTOR
+    // -------------------------
     const variantWrapper = document.createElement("div");
+    variantWrapper.className =
+      "bdm-sticky-atc-variant " +
+      (isMobile && hasVariants ? "bdm-variant-top" : "");
 
-    if (variants.length > 1) {
+    if (hasVariants) {
       const select = document.createElement("select");
       select.className = "bdm-sticky-atc-variant-select";
 
@@ -73,34 +79,30 @@
         const opt = document.createElement("option");
         opt.value = v.id;
         opt.textContent = v.public_title || v.title;
+        if (String(v.id) === String(currentVariantId)) opt.selected = true;
         select.appendChild(opt);
       });
-
-      select.value = currentVariantId;
 
       select.addEventListener("change", () => {
         currentVariantId = select.value;
         const v = findVariantById(currentVariantId);
+        currentPrice = v.price;
 
-        if (v) {
-          currentPrice = v.price;
-          priceEl.textContent = formatMoney(v.price);
-        }
+        productInfo.querySelector(".bdm-sticky-atc-price").textContent =
+          formatMoney(currentPrice);
 
-        // sync original Shopify variant form
         if (variantSelect) {
           variantSelect.value = currentVariantId;
           variantSelect.dispatchEvent(new Event("change", { bubbles: true }));
         }
       });
 
-      variantWrapper.append(select);
-
-      // MOBILE: hide title when variants exist
-      titleEl.classList.add("bdm-hide-title-mobile");
+      variantWrapper.appendChild(select);
     }
 
-    /* QUANTITY CONTROL */
+    // -------------------------
+    // QUANTITY CONTROLS
+    // -------------------------
     const qtyWrapper = document.createElement("div");
     qtyWrapper.className = "bdm-sticky-atc-qty";
 
@@ -118,12 +120,14 @@
     plusBtn.className = "bdm-qty-btn";
     plusBtn.textContent = "+";
 
-    minusBtn.onclick = () => qtyInput.value = Math.max(1, Number(qtyInput.value) - 1);
+    minusBtn.onclick = () => qtyInput.value = Math.max(1, qtyInput.value - 1);
     plusBtn.onclick = () => qtyInput.value = Number(qtyInput.value) + 1;
 
     qtyWrapper.append(minusBtn, qtyInput, plusBtn);
 
-    /* ADD TO CART */
+    // -------------------------
+    // ADD TO CART
+    // -------------------------
     const atcButton = document.createElement("button");
     atcButton.className = "bdm-sticky-atc-button";
     atcButton.textContent = "Add to cart";
@@ -131,10 +135,7 @@
     atcButton.addEventListener("click", async () => {
       const res = await fetch("/cart/add.js", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
-        },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           id: currentVariantId,
           quantity: Number(qtyInput.value)
@@ -144,8 +145,11 @@
       if (res.ok) updateCartIconAndDrawer();
     });
 
-    /* FINAL ASSEMBLY */
+    // BUILD
+    const controls = document.createElement("div");
+    controls.className = "bdm-sticky-atc-controls";
     controls.append(variantWrapper, qtyWrapper, atcButton);
+
     inner.append(productInfo, controls);
     bar.appendChild(inner);
     document.body.appendChild(bar);
