@@ -1,20 +1,24 @@
-// Sticky Add to Cart Bar JS (mobile + desktop optimized)
+// Sticky Add to Cart Bar – Desktop vA + Compact Mobile
 (function () {
   function updateCartIconAndDrawer() {
+    // Fire common theme events if they exist
     document.dispatchEvent(new CustomEvent("cart:refresh"));
-
     if (window.fetchCart) window.fetchCart();
     if (window.updateCart) window.updateCart();
 
+    // Update cart count bubbles
     fetch("/cart.js")
-      .then(res => res.json())
-      .then(cart => {
-        document.querySelectorAll(".cart-count, .cart-count-bubble, [data-cart-count]")
-          .forEach(el => {
-            el.textContent = cart.item_count;
-            el.dataset.cartCount = cart.item_count;
-          });
-      });
+      .then((res) => res.json())
+      .then((cart) => {
+        const els = document.querySelectorAll(
+          ".cart-count, .cart-count-bubble, [data-cart-count]"
+        );
+        els.forEach((el) => {
+          el.textContent = cart.item_count;
+          el.dataset.cartCount = cart.item_count;
+        });
+      })
+      .catch(() => {});
   }
 
   function initStickyBar() {
@@ -26,83 +30,106 @@
 
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
 
-    const productTitle = root.dataset.productTitle;
+    const productTitle = root.dataset.productTitle || document.title;
+
     let variants = window.ShopifyAnalytics?.meta?.product?.variants || [];
     const hasVariants = variants.length > 1;
 
-    const variantSelect = productForm.querySelector("select[name='id']");
-    let currentVariantId = variantSelect ? variantSelect.value : variants[0]?.id;
+    const variantSelectOnPage = productForm.querySelector("select[name='id']");
+    let currentVariantId = variantSelectOnPage
+      ? variantSelectOnPage.value
+      : variants[0]?.id;
 
-    const findVariantById = id => variants.find(v => String(v.id) === String(id));
-    const formatMoney = cents =>
-      (cents / 100).toLocaleString(undefined, {
+    // Fallback for single-variant products
+    if (!currentVariantId) {
+      const fallback = productForm.querySelector("[name='id']");
+      if (fallback) currentVariantId = fallback.value;
+    }
+
+    const findVariantById = (id) =>
+      variants.find((v) => String(v.id) === String(id));
+
+    const formatMoney = (cents) => {
+      const safe = typeof cents === "number" ? cents : 0;
+      return (safe / 100).toLocaleString(undefined, {
         style: "currency",
-        currency: Shopify.currency.active
+        currency: Shopify?.currency?.active || "USD",
       });
+    };
 
     let currentPrice = findVariantById(currentVariantId)?.price;
 
-    // BAR CONTAINER
+    // ========= BAR CONTAINER =========
     const bar = document.createElement("div");
     bar.className = "bdm-sticky-atc-bar-container";
 
     const inner = document.createElement("div");
     inner.className = "bdm-sticky-atc-bar-inner";
 
-    // PRODUCT INFO
+    // ========= PRODUCT INFO (Title + Price) =========
     const productInfo = document.createElement("div");
     productInfo.className = "bdm-sticky-atc-product";
 
-    // Mobile: hide title when variants exist
-    const hideTitle = isMobile && hasVariants ? "bdm-hide" : "";
+    const titleEl = document.createElement("div");
+    titleEl.className = "bdm-sticky-atc-title";
+    titleEl.textContent = productTitle;
 
-    productInfo.innerHTML = `
-      <div class="bdm-sticky-atc-title ${hideTitle}">
-        ${productTitle}
-      </div>
-      <div class="bdm-sticky-atc-price">${formatMoney(currentPrice)}</div>
-    `;
+    const priceEl = document.createElement("div");
+    priceEl.className = "bdm-sticky-atc-price";
+    priceEl.textContent = formatMoney(currentPrice);
 
-    // -------------------------
-    // VARIANT SELECTOR
-    // -------------------------
+    productInfo.appendChild(titleEl);
+    productInfo.appendChild(priceEl);
+
+    // ========= VARIANT SELECTOR =========
     const variantWrapper = document.createElement("div");
-    variantWrapper.className =
-      "bdm-sticky-atc-variant " +
-      (isMobile && hasVariants ? "bdm-variant-top" : "");
+    variantWrapper.className = "bdm-sticky-atc-variant";
 
     if (hasVariants) {
       const select = document.createElement("select");
       select.className = "bdm-sticky-atc-variant-select";
 
-      variants.forEach(v => {
+      variants.forEach((v) => {
         const opt = document.createElement("option");
         opt.value = v.id;
-        opt.textContent = v.public_title || v.title;
-        if (String(v.id) === String(currentVariantId)) opt.selected = true;
+        opt.textContent = v.public_title || v.title || `Variant ${v.id}`;
         select.appendChild(opt);
       });
+
+      select.value = currentVariantId;
 
       select.addEventListener("change", () => {
         currentVariantId = select.value;
         const v = findVariantById(currentVariantId);
-        currentPrice = v.price;
+        if (v) {
+          currentPrice = v.price;
+          priceEl.textContent = formatMoney(currentPrice);
+        }
 
-        productInfo.querySelector(".bdm-sticky-atc-price").textContent =
-          formatMoney(currentPrice);
-
-        if (variantSelect) {
-          variantSelect.value = currentVariantId;
-          variantSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        // Sync native product form
+        if (variantSelectOnPage) {
+          variantSelectOnPage.value = currentVariantId;
+          variantSelectOnPage.dispatchEvent(
+            new Event("change", { bubbles: true })
+          );
         }
       });
 
-      variantWrapper.appendChild(select);
+      // Desktop: variant selector in controls row
+      // Mobile: variant selector goes where the title was (to save vertical space)
+      if (isMobile) {
+        titleEl.style.display = "none"; // hide title on mobile when variants exist
+        const mobileVariantRow = document.createElement("div");
+        mobileVariantRow.className = "bdm-variant-mobile-row";
+        mobileVariantRow.appendChild(select);
+        // Insert variant row where title was
+        productInfo.insertBefore(mobileVariantRow, priceEl);
+      } else {
+        variantWrapper.appendChild(select);
+      }
     }
 
-    // -------------------------
-    // QUANTITY CONTROLS
-    // -------------------------
+    // ========= QUANTITY CONTROLS =========
     const qtyWrapper = document.createElement("div");
     qtyWrapper.className = "bdm-sticky-atc-qty";
 
@@ -120,42 +147,72 @@
     plusBtn.className = "bdm-qty-btn";
     plusBtn.textContent = "+";
 
-    minusBtn.onclick = () => qtyInput.value = Math.max(1, qtyInput.value - 1);
-    plusBtn.onclick = () => qtyInput.value = Number(qtyInput.value) + 1;
+    minusBtn.addEventListener("click", () => {
+      qtyInput.value = Math.max(1, Number(qtyInput.value) - 1);
+    });
+
+    plusBtn.addEventListener("click", () => {
+      qtyInput.value = Number(qtyInput.value) + 1;
+    });
 
     qtyWrapper.append(minusBtn, qtyInput, plusBtn);
 
-    // -------------------------
-    // ADD TO CART
-    // -------------------------
+    // ========= ADD TO CART BUTTON =========
     const atcButton = document.createElement("button");
     atcButton.className = "bdm-sticky-atc-button";
     atcButton.textContent = "Add to cart";
 
     atcButton.addEventListener("click", async () => {
+      // Final safety fallback
+      if (!currentVariantId) {
+        const fallback = productForm.querySelector("[name='id']");
+        if (fallback) currentVariantId = fallback.value;
+      }
+      if (!currentVariantId) {
+        alert("Unable to determine variant.");
+        return;
+      }
+
+      const quantity = Math.max(1, Number(qtyInput.value) || 1);
+
       const res = await fetch("/cart/add.js", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          id: currentVariantId,
-          quantity: Number(qtyInput.value)
-        })
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ id: currentVariantId, quantity }),
       });
 
-      if (res.ok) updateCartIconAndDrawer();
+      if (!res.ok) {
+        console.error("Cart add error", await res.text());
+        alert("Could not add to cart. Please try again.");
+        return;
+      }
+
+      updateCartIconAndDrawer();
     });
 
-    // BUILD
+    // ========= CONTROLS LAYOUT =========
     const controls = document.createElement("div");
     controls.className = "bdm-sticky-atc-controls";
-    controls.append(variantWrapper, qtyWrapper, atcButton);
+
+    if (!isMobile && hasVariants) {
+      // Desktop Version A: variant + qty + button
+      controls.append(variantWrapper, qtyWrapper, atcButton);
+    } else {
+      // Mobile (variant already moved up) or no variants
+      controls.append(qtyWrapper, atcButton);
+    }
 
     inner.append(productInfo, controls);
     bar.appendChild(inner);
     document.body.appendChild(bar);
   }
 
-  document.readyState === "loading"
-    ? document.addEventListener("DOMContentLoaded", initStickyBar)
-    : initStickyBar();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initStickyBar);
+  } else {
+    initStickyBar();
+  }
 })();
