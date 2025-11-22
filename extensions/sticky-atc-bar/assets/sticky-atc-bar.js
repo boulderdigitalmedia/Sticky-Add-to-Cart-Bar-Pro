@@ -1,40 +1,132 @@
-// Sticky Add to Cart Bar – Desktop vA + Compact Mobile
+// Sticky Add to Cart Bar – Desktop vA + Compact Mobile (Universal-Compatible)
 (function () {
   /* =========================================
-     CART REFRESH: use theme's CartDrawer
+     CART REFRESH: theme-aware + universal fallback
      ========================================= */
   async function updateCartIconAndDrawer() {
-    try {
-      const rootPath = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+    let handledByThemeDrawer = false;
 
-      // Fetch updated HTML for cart drawer + header cart icon section
+    // ----- TIER 1: Your (Dawn-style) theme with cart-drawer + cart-icon-bubble -----
+    try {
+      const rootPath =
+        (window.Shopify &&
+          window.Shopify.routes &&
+          window.Shopify.routes.root) ||
+        "/";
+
       const sectionsRes = await fetch(
         `${rootPath}?sections=cart-drawer,cart-icon-bubble`
       );
-      const sections = await sectionsRes.json();
 
-      const parsedState = {
-        id: Date.now(), // not really used by your CartDrawer, but required property
-        sections
-      };
+      let sections = null;
+      try {
+        sections = await sectionsRes.json();
+      } catch (e) {
+        sections = null;
+      }
 
-      const cartDrawer = document.querySelector('cart-drawer');
+      if (sections) {
+        const parsedState = {
+          id: Date.now(),
+          sections,
+        };
 
-      if (cartDrawer && typeof cartDrawer.renderContents === 'function') {
-        // This will update #CartDrawer and #cart-icon-bubble and then open the drawer
-        cartDrawer.renderContents(parsedState);
-      } else {
-        // Fallback: at least update the cart icon bubble HTML
-        const bubbleContainer = document.getElementById('cart-icon-bubble');
-        if (bubbleContainer && sections['cart-icon-bubble']) {
-          const temp = document.createElement('div');
-          temp.innerHTML = sections['cart-icon-bubble'];
-          const newBubble = temp.querySelector('#cart-icon-bubble');
-          if (newBubble) bubbleContainer.replaceWith(newBubble);
+        const cartDrawer = document.querySelector("cart-drawer");
+
+        // If this is a Dawn-style theme with CartDrawer.renderContents
+        if (
+          cartDrawer &&
+          typeof cartDrawer.renderContents === "function" &&
+          sections["cart-drawer"]
+        ) {
+          cartDrawer.renderContents(parsedState);
+          handledByThemeDrawer = true;
+        }
+
+        // Update cart icon bubble HTML if the section exists
+        const bubbleContainer = document.getElementById("cart-icon-bubble");
+        if (bubbleContainer && sections["cart-icon-bubble"]) {
+          const temp = document.createElement("div");
+          temp.innerHTML = sections["cart-icon-bubble"];
+          const newBubble = temp.querySelector("#cart-icon-bubble");
+          if (newBubble) {
+            bubbleContainer.replaceWith(newBubble);
+          }
+          handledByThemeDrawer = true;
         }
       }
     } catch (err) {
-      console.error('Error updating cart drawer/icon from sticky bar:', err);
+      console.warn(
+        "Theme-specific cart drawer refresh via sections failed:",
+        err
+      );
+    }
+
+    // ----- TIER 2: Universal fallback for ALL themes -----
+    // If we couldn't handle via cart-drawer + sections, or to reinforce cart count:
+    try {
+      const cart = await fetch("/cart.js").then((r) => r.json());
+      const count = cart.item_count;
+
+      // Update numeric cart counters
+      const countEls = document.querySelectorAll(
+        ".cart-count, .cart-count-bubble, [data-cart-count]"
+      );
+      countEls.forEach((el) => {
+        el.textContent = count;
+        el.dataset.cartCount = count;
+
+        // Try to ensure it's visible when > 0
+        if (count > 0) {
+          el.removeAttribute("hidden");
+          el.setAttribute("aria-hidden", "false");
+          el.classList.remove("is-empty");
+        } else {
+          el.setAttribute("aria-hidden", "true");
+          el.classList.add("is-empty");
+        }
+      });
+
+      // Dispatch common cart events many themes hook into
+      document.dispatchEvent(
+        new CustomEvent("cart:refresh", { detail: { cart } })
+      );
+      document.dispatchEvent(
+        new CustomEvent("cartcount:update", { detail: { count } })
+      );
+      document.dispatchEvent(
+        new CustomEvent("ajaxProduct:added", { detail: { cart } })
+      );
+
+      // Call any global helpers if the theme exposes them
+      if (typeof window.fetchCart === "function") window.fetchCart();
+      if (typeof window.updateCart === "function") window.updateCart();
+      if (typeof window.refreshCart === "function") window.refreshCart();
+    } catch (err) {
+      console.warn("Universal cart count refresh failed:", err);
+    }
+
+    // ----- TIER 3: Try to open a cart drawer / mini-cart (non-Dawn themes) -----
+    try {
+      // If we already used your CartDrawer.renderContents (Dawn style),
+      // it already opens the drawer, so we can skip this part.
+      if (handledByThemeDrawer) return;
+
+      const drawerToggle =
+        document.querySelector('[data-cart-toggle]') ||
+        document.querySelector('[data-drawer-toggle]') ||
+        document.querySelector('.js-cart-toggle') ||
+        document.querySelector('.js-drawer-open-cart') ||
+        document.querySelector('[aria-controls="CartDrawer"]') ||
+        document.querySelector('#cart-icon-bubble');
+
+      if (drawerToggle) {
+        drawerToggle.dispatchEvent(
+          new Event("click", { bubbles: true, cancelable: true })
+        );
+      }
+    } catch (err) {
+      console.warn("Error trying to open cart drawer/mini-cart:", err);
     }
   }
 
@@ -183,7 +275,7 @@
     atcButton.textContent = "Add to cart";
 
     atcButton.addEventListener("click", async () => {
-      // Final safety fallback
+      // Final safety fallback for variant ID
       if (!currentVariantId) {
         const fallback = productForm.querySelector("[name='id']");
         if (fallback) currentVariantId = fallback.value;
@@ -210,7 +302,7 @@
         return;
       }
 
-      // Now refresh drawer + icon via theme's own CartDrawer
+      // Now refresh drawer + icon
       updateCartIconAndDrawer();
     });
 
