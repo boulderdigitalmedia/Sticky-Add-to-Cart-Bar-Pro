@@ -24,7 +24,7 @@ const HOST =
     .replace(/\/$/, ""); // remove trailing slash
 
 if (!HOST.startsWith("https://")) {
-  console.error("❌ HOST must start with https://");
+  console.error("❌ HOST must start with https:// (current HOST:", HOST, ")");
 }
 
 /* ============================================
@@ -48,6 +48,7 @@ const shopify = shopifyApp({
     path: "/webhooks"
   },
 
+  // Single recurring plan: $4.99, 30-day interval, 14-day trial
   billing: {
     [BILLING_PLAN_NAME]: {
       amount: 4.99,
@@ -64,28 +65,34 @@ const shopify = shopifyApp({
 async function requireBilling(req, res, next) {
   try {
     const session = res.locals.shopify?.session;
-    if (!session) return res.status(401).send("Missing Shopify session");
+    if (!session) {
+      console.error("requireBilling: missing Shopify session");
+      return res.status(401).send("Missing Shopify session");
+    }
 
-    const hasPayment = await shopify.billing.check({
+    const plans = [BILLING_PLAN_NAME];
+
+    // ✅ Use shopify.api.billing.* (NOT shopify.billing.*)
+    const hasPayment = await shopify.api.billing.check({
       session,
-      plans: [BILLING_PLAN_NAME],
+      plans,
       isTest: BILLING_TEST
     });
 
-    if (hasPayment) return next();
+    if (hasPayment) {
+      return next();
+    }
 
     const returnUrl = `${HOST}/?shop=${encodeURIComponent(session.shop)}`;
 
-    const confirmationUrl = await shopify.billing.request({
+    const confirmationUrl = await shopify.api.billing.request({
       session,
       plan: BILLING_PLAN_NAME,
       isTest: BILLING_TEST,
       returnUrl
     });
 
-    // redirect merchant to billing confirmation
     return res.redirect(confirmationUrl);
-
   } catch (error) {
     console.error("Billing error:", error?.response?.body || error);
     return res.status(500).send("Billing error");
@@ -93,7 +100,7 @@ async function requireBilling(req, res, next) {
 }
 
 /* ============================================
-   EXIT IFRAMES (Fix for Firefox OAuth)
+   EXIT IFRAMES (Firefox / Safari OAuth Fix)
 ============================================ */
 app.get("/exitiframe", (req, res) => {
   const shop = req.query.shop;
@@ -101,28 +108,25 @@ app.get("/exitiframe", (req, res) => {
 
   return res.send(`
     <script>
-      // Force redirect OUT of iframe
       window.top.location.href = "${HOST}/auth?shop=${encodeURIComponent(shop)}";
     </script>
   `);
 });
 
 /* ============================================
-   OVERRIDE /auth TO FORCE TOP-LEVEL REDIRECT
+   /auth – START OAUTH, HANDLE EMBEDDED FLOW
 ============================================ */
 app.get("/auth", (req, res, next) => {
   const shop = req.query.shop;
-
   if (!shop) return res.status(400).send("Missing shop");
 
-  // Always break out of iframe (Firefox fix)
+  // If in an embedded context, break out of the iframe first
   const isEmbedded = req.query.embedded === "1";
 
   if (isEmbedded) {
     return res.redirect(`/exitiframe?shop=${encodeURIComponent(shop)}`);
   }
 
-  // Proceed with Shopify OAuth
   return shopify.auth.begin()(req, res, next);
 });
 
@@ -155,13 +159,13 @@ app.use(
 app.use("/apps/bdm-sticky-atc", stickyAnalytics);
 
 /* ============================================
-   ROOT PAGE (ADMIN APP)
+   ROOT PAGE (ADMIN APP UI)
 ============================================ */
 app.get(
   "/",
   shopify.validateAuthenticatedSession(),
   requireBilling,
-  (req, res) => {
+  (_req, res) => {
     res.send("BDM Sticky ATC App Running 🎉");
   }
 );
