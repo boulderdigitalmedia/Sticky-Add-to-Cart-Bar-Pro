@@ -64,7 +64,11 @@ const shopify = shopifyApp({
   },
 
   webhooks: {
-    path: "/webhooks"
+    path: "/webhooks",
+    topics: [
+    "CHECKOUTS_CREATE",
+    "ORDERS_PAID"
+  ]
   }
 });
 
