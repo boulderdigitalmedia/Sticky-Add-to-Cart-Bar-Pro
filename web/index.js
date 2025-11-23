@@ -172,6 +172,15 @@ app.get(
   }
 );
 
+app.get(
+  "/analytics",
+  shopify.validateAuthenticatedSession(),
+  requireBilling,
+  (req, res) => {
+    return res.render("index"); // loads React UI
+  }
+);
+
 /* ----------------------------------------
    START SERVER
 ----------------------------------------- */
