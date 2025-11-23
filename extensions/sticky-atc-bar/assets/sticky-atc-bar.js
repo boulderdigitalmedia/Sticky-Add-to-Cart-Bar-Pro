@@ -337,6 +337,11 @@
         return;
       }
 
+      // Sticky-Bar Attribution Session
+sessionStorage.setItem("bdm_sticky_last_atc", Date.now());
+sessionStorage.setItem("bdm_sticky_variant", currentVariantId);
+sessionStorage.setItem("bdm_sticky_product", window.ShopifyAnalytics?.meta?.product?.id);
+
       updateCartIconAndDrawer();
     });
 
