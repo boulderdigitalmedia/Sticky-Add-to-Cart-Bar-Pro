@@ -18,3 +18,30 @@ model StickyEvent {
   quantity   Int
   createdAt  DateTime @default(now())
 }
+model StickyEvent {
+  id        String   @id @default(cuid())
+  shop      String
+  event     String                // page_view, add_to_cart, variant_change
+  productId String?
+  variantId String?
+  quantity  Int?
+  price     Float?                // store price on ATC event for revenue calc
+  timestamp DateTime @default(now())
+
+  @@index([shop])
+  @@index([event])
+  @@index([timestamp])
+}
+
+model StickyMetricsDaily {
+  id          String   @id @default(cuid())
+  shop        String
+  date        DateTime
+  pageViews   Int      @default(0)
+  addToCart   Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Float    @default(0)
+
+  @@index([shop])
+  @@index([date])
+}
