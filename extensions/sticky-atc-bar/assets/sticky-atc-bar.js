@@ -317,6 +317,12 @@
 
       const quantity = Math.max(1, Number(qtyInput.value) || 1);
 
+      sessionStorage.setItem("bdm_sticky_atc_last_event", JSON.stringify({
+  product: window.ShopifyAnalytics?.meta?.product?.id,
+  variant: currentVariantId,
+  time: Date.now()
+}));
+
       sendAnalytics("add_to_cart", {
         variant: currentVariantId,
         quantity,
