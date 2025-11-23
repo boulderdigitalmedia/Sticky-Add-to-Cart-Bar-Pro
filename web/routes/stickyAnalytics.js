@@ -1,36 +1,33 @@
-// web/routes/stickyAnalytics.js
 import express from "express";
 import { PrismaClient } from "@prisma/client";
-
 const prisma = new PrismaClient();
+
 const router = express.Router();
 
-/**
- * POST /apps/bdm-sticky-atc/track
- * Body: { shopDomain, type, productId?, variantId?, quantity? }
- */
 router.post("/track", async (req, res) => {
   try {
-    const { shopDomain, type, productId, variantId, quantity } = req.body || {};
+    const { shop, event, product, variant, quantity, price } = req.body;
 
-    if (!shopDomain || !type) {
-      return res.status(400).json({ error: "shopDomain and type are required" });
+    if (!shop || !event) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    await prisma.StickyEvent.create({
+    // Store raw event
+    await prisma.stickyEvent.create({
       data: {
-        shopDomain,
-        type,
-        productId: productId || "",
-        variantId: variantId || "",
-        quantity: Number.isFinite(Number(quantity)) ? Number(quantity) : 0,
-      },
+        shop,
+        event,
+        productId: product?.toString() || null,
+        variantId: variant?.toString() || null,
+        quantity: quantity ? Number(quantity) : null,
+        price: price ? Number(price) : null
+      }
     });
 
-    return res.json({ ok: true });
+    return res.json({ success: true });
   } catch (err) {
-    console.error("Sticky analytics track error:", err);
-    return res.status(500).json({ error: "Server error" });
+    console.error("Analytics ingest error:", err);
+    return res.status(500).json({ error: "Failed to save analytics" });
   }
 });
 
