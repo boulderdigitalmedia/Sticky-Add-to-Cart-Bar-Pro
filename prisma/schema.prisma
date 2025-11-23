@@ -49,9 +49,10 @@ model StickyAttribution {
 model StickyConversion {
   id        Int      @id @default(autoincrement())
   shop      String
-  orderId   String
-  productId String
-  variantId String
-  revenue   Float
-  timestamp BigInt
+  product   String?
+  variant   String?
+  addedAt   DateTime
+  orderId   String?
+  status    String?
+  createdAt DateTime @default(now())
 }
