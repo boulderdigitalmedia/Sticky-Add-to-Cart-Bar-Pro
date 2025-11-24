@@ -1,7 +1,11 @@
 // web/index.js
 import express from "express";
 import { shopifyApp } from "@shopify/shopify-app-express";
-import { BillingInterval, LATEST_API_VERSION } from "@shopify/shopify-api";
+import {
+  BillingInterval,
+  LATEST_API_VERSION,
+  DeliveryMethod,
+} from "@shopify/shopify-api";
 import { PrismaClient } from "@prisma/client";
 
 import stickyAnalytics from "./routes/stickyAnalytics.js";
@@ -35,9 +39,8 @@ const billingConfig = {
     amount: 4.99,
     currencyCode: "USD",
     interval: BillingInterval.Every30Days,
-    trialDays: 14
-    // You can add replacementBehavior here if needed
-  }
+    trialDays: 14,
+  },
 };
 
 /* ----------------------------------------
@@ -54,22 +57,145 @@ const shopify = shopifyApp({
       .map((s) => s.trim()),
     hostName: (process.env.HOST || "").replace(/^https?:\/\//, "").trim(),
 
-    // ⬅️ IMPORTANT: billing config goes here in v10
-    billing: billingConfig
+    // ⬅️ billing config for v10
+    billing: billingConfig,
   },
 
   auth: {
     path: "/auth",
-    callbackPath: "/auth/callback"
+    callbackPath: "/auth/callback",
   },
 
   webhooks: {
     path: "/webhooks",
+    // These topics will be registered automatically
     topics: [
-    "CHECKOUTS_CREATE",
-    "ORDERS_PAID"
-  ]
+      "CHECKOUTS_CREATE",
+      "ORDERS_PAID",
+      "APP_UNINSTALLED",
+      "THEMES_PUBLISH",
+    ],
+  },
+});
+
+/* ----------------------------------------
+   THEME INJECTION HELPER
+   - Injects {% render 'sticky-atc-bar' %} into main theme
+----------------------------------------- */
+
+async function injectStickyForShop(shop) {
+  try {
+    const offlineId = shopify.api.session.getOfflineId(shop);
+    const session = await shopify.config.sessionStorage.loadSession(offlineId);
+
+    if (!session) {
+      console.warn("⚠️ No offline session found for shop", shop);
+      return;
+    }
+
+    const client = new shopify.api.clients.Rest({ session });
+
+    // 1) Get themes, find main theme
+    const themesRes = await client.get({ path: "themes" });
+    const themes = themesRes.body.themes || [];
+    const mainTheme =
+      themes.find((t) => t.role === "main") || themes[0];
+
+    if (!mainTheme) {
+      console.warn("⚠️ No main theme found for", shop);
+      return;
+    }
+
+    // 2) Get layout/theme.liquid
+    const assetKey = "layout/theme.liquid";
+    const assetRes = await client.get({
+      path: `themes/${mainTheme.id}/assets`,
+      query: { "asset[key]": assetKey },
+    });
+
+    const layout = assetRes.body.asset?.value || "";
+    if (!layout) {
+      console.warn(
+        "⚠️ No layout/theme.liquid content for theme",
+        mainTheme.id,
+        "shop",
+        shop
+      );
+      return;
+    }
+
+    // 3) If snippet already present, do nothing
+    if (layout.includes("sticky-atc-bar")) {
+      console.log("✅ Sticky snippet already present for", shop);
+      return;
+    }
+
+    const snippetTag = `{% render 'sticky-atc-bar' %}`;
+    let updated;
+
+    if (layout.includes("</body>")) {
+      updated = layout.replace(
+        "</body>",
+        `  ${snippetTag}\n</body>`
+      );
+    } else {
+      // Fallback: just append at end
+      updated = `${layout}\n${snippetTag}\n`;
+    }
+
+    // 4) Save updated theme.liquid
+    await client.put({
+      path: `themes/${mainTheme.id}/assets`,
+      data: {
+        asset: {
+          key: assetKey,
+          value: updated,
+        },
+      },
+    });
+
+    console.log(
+      `🎯 Injected sticky-atc-bar snippet into ${shop}, theme ${mainTheme.id}`
+    );
+  } catch (err) {
+    console.error("❌ Error injecting sticky bar for", shop, err);
   }
+}
+
+/* ----------------------------------------
+   WEBHOOK HANDLERS (uninstall + theme publish)
+----------------------------------------- */
+
+shopify.webhooks.addHandlers({
+  APP_UNINSTALLED: {
+    deliveryMethod: DeliveryMethod.Http,
+    callbackUrl: "/webhooks",
+    callback: async (topic, shop, body) => {
+      console.log("🧹 APP_UNINSTALLED for", shop);
+      try {
+        // Clean up analytics for this shop (if using shopDomain in model)
+        await prisma.stickyEvent.deleteMany({
+          where: { shopDomain: shop },
+        });
+      } catch (err) {
+        console.warn(
+          "⚠️ Error cleaning StickyEvent for",
+          shop,
+          err
+        );
+      }
+    },
+  },
+
+  THEMES_PUBLISH: {
+    deliveryMethod: DeliveryMethod.Http,
+    callbackUrl: "/webhooks",
+    callback: async (topic, shop, body) => {
+      console.log("🧩 THEMES_PUBLISH for", shop);
+      // Re-inject snippet whenever a theme is published
+      await injectStickyForShop(shop);
+    },
+  },
 });
 
 /* ----------------------------------------
@@ -82,7 +208,6 @@ async function requireBilling(req, res, next) {
 
     if (!session) {
       console.error("❌ requireBilling: missing Shopify session");
-      // Kick back to auth with shop param if we have it
       const shop = req.query.shop;
       if (shop) {
         return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
@@ -94,7 +219,7 @@ async function requireBilling(req, res, next) {
     const { hasActivePayment } = await shopify.api.billing.check({
       session,
       plans: [BILLING_PLAN_NAME],
-      isTest: BILLING_TEST_MODE
+      isTest: BILLING_TEST_MODE,
     });
 
     if (hasActivePayment) {
@@ -102,17 +227,23 @@ async function requireBilling(req, res, next) {
     }
 
     // 2️⃣ No active billing – request subscription
-    const appUrl = process.env.SHOPIFY_APP_URL || `https://${process.env.HOST}`;
-    const returnUrl = `${appUrl}/?shop=${encodeURIComponent(session.shop)}`;
+    const appUrl =
+      process.env.SHOPIFY_APP_URL || `https://${process.env.HOST}`;
+    const returnUrl = `${appUrl}/?shop=${encodeURIComponent(
+      session.shop
+    )}`;
 
     const confirmationUrl = await shopify.api.billing.request({
       session,
       plan: BILLING_PLAN_NAME,
       isTest: BILLING_TEST_MODE,
-      returnUrl
+      returnUrl,
     });
 
-    console.log("🧾 Redirecting merchant to billing approval:", confirmationUrl);
+    console.log(
+      "🧾 Redirecting merchant to billing approval:",
+      confirmationUrl
+    );
     return res.redirect(confirmationUrl);
   } catch (error) {
     console.error("❌ Billing check/request error:", error);
@@ -132,9 +263,15 @@ app.get(
   "/auth/callback",
   shopify.auth.callback(),
   requireBilling,
-  (req, res) => {
+  async (req, res) => {
     const session = res.locals.shopify?.session;
     const shop = session?.shop || req.query.shop;
+
+    // Optional: inject snippet on first successful install / auth
+    if (shop) {
+      await injectStickyForShop(shop);
+    }
+
     return res.redirect(`/?shop=${encodeURIComponent(shop)}`);
   }
 );
@@ -145,6 +282,12 @@ app.get("/exitiframe", (req, res) => {
   if (!shop) return res.status(400).send("Missing shop parameter");
   return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
 });
+
+/* ----------------------------------------
+   WEBHOOK ENDPOINT (Shopify → your app)
+----------------------------------------- */
+
+app.post("/webhooks", shopify.webhooks.process());
 
 /* ----------------------------------------
    PROTECTED API (requires auth + billing)
