@@ -57,7 +57,6 @@
 
         const cartDrawer = document.querySelector("cart-drawer");
 
-        // Use CartDrawer if available
         if (
           cartDrawer &&
           typeof cartDrawer.renderContents === "function" &&
@@ -65,10 +64,8 @@
         ) {
           cartDrawer.renderContents(parsedState);
 
-          // ⭐ IMPORTANT: fix empty→non-empty state on Dawn-style themes
           try {
             const cart = await fetch("/cart.js").then((r) => r.json());
-            // Dawn’s CartDrawer.open() checks this.classList.contains('is-empty')
             cartDrawer.classList.toggle("is-empty", cart.item_count === 0);
           } catch (e) {
             console.warn("Error toggling cart-drawer empty state:", e);
@@ -77,7 +74,6 @@
           handledByThemeDrawer = true;
         }
 
-        // Replace cart bubble HTML if present
         const bubbleContainer = document.getElementById("cart-icon-bubble");
         if (bubbleContainer && sections["cart-icon-bubble"]) {
           const temp = document.createElement("div");
@@ -124,7 +120,6 @@
         new CustomEvent("ajaxProduct:added", { detail: { cart } })
       );
 
-      // If themes expose helpers, call them
       if (typeof window.fetchCart === "function") window.fetchCart();
       if (typeof window.updateCart === "function") window.updateCart();
       if (typeof window.refreshCart === "function") window.refreshCart();
@@ -132,9 +127,8 @@
       console.warn("Universal cart update failed:", err);
     }
 
-    // TIER 3: UNIVERSAL CART DRAWER OPENING FOR NON-DAWN
+    // TIER 3: UNIVERSAL CART DRAWER OPENING FOR NON-DAWN THEMES
     try {
-      // Even if Dawn handled it, re-clicking the bubble is safe (open is idempotent)
       const drawerToggle =
         document.querySelector('[data-cart-toggle]') ||
         document.querySelector('[data-drawer-toggle]') ||
@@ -170,9 +164,8 @@
     const hasVariants = variants.length > 1;
 
     const variantSelectOnPage = productForm.querySelector("select[name='id']");
-    let currentVariantId = variantSelectOnPage
-      ? variantSelectOnPage.value
-      : variants[0]?.id;
+    let currentVariantId =
+      variantSelectOnPage?.value || variants[0]?.id;
 
     if (!currentVariantId) {
       const fallback = productForm.querySelector("[name='id']");
@@ -192,14 +185,12 @@
 
     let currentPrice = findVariantById(currentVariantId)?.price;
 
-    // BAR CONTAINER
     const bar = document.createElement("div");
     bar.className = "bdm-sticky-atc-bar-container";
 
     const inner = document.createElement("div");
     inner.className = "bdm-sticky-atc-bar-inner";
 
-    // PRODUCT INFO
     const productInfo = document.createElement("div");
     productInfo.className = "bdm-sticky-atc-product";
 
@@ -242,9 +233,7 @@
           priceEl.textContent = formatMoney(currentPrice);
         }
 
-        sendAnalytics("variant_change", {
-          variant: currentVariantId,
-        });
+        sendAnalytics("variant_change", { variant: currentVariantId });
 
         if (variantSelectOnPage) {
           variantSelectOnPage.value = currentVariantId;
@@ -254,7 +243,6 @@
         }
       });
 
-      // Mobile: move variant selector where the title was
       if (isMobile) {
         titleEl.style.display = "none";
         const mobileVariantRow = document.createElement("div");
@@ -262,7 +250,6 @@
         mobileVariantRow.appendChild(select);
         productInfo.insertBefore(mobileVariantRow, priceEl);
       } else {
-        // Desktop: keep it in the controls row
         variantWrapper.appendChild(select);
       }
     }
@@ -317,11 +304,14 @@
 
       const quantity = Math.max(1, Number(qtyInput.value) || 1);
 
-      sessionStorage.setItem("bdm_sticky_atc_last_event", JSON.stringify({
-  product: window.ShopifyAnalytics?.meta?.product?.id,
-  variant: currentVariantId,
-  time: Date.now()
-}));
+      sessionStorage.setItem(
+        "bdm_sticky_atc_last_event",
+        JSON.stringify({
+          product: window.ShopifyAnalytics?.meta?.product?.id,
+          variant: currentVariantId,
+          time: Date.now(),
+        })
+      );
 
       sendAnalytics("add_to_cart", {
         variant: currentVariantId,
@@ -343,10 +333,12 @@
         return;
       }
 
-      // Sticky-Bar Attribution Session
-sessionStorage.setItem("bdm_sticky_last_atc", Date.now());
-sessionStorage.setItem("bdm_sticky_variant", currentVariantId);
-sessionStorage.setItem("bdm_sticky_product", window.ShopifyAnalytics?.meta?.product?.id);
+      sessionStorage.setItem("bdm_sticky_last_atc", Date.now());
+      sessionStorage.setItem("bdm_sticky_variant", currentVariantId);
+      sessionStorage.setItem(
+        "bdm_sticky_product",
+        window.ShopifyAnalytics?.meta?.product?.id
+      );
 
       updateCartIconAndDrawer();
     });
