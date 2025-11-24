@@ -165,11 +165,11 @@ async function injectStickyForShop(shop) {
 /* ----------------------------------------
    WEBHOOK HANDLERS (uninstall + theme publish)
 ----------------------------------------- */
-
 /* ----------------------------------------
-   WEBHOOK HANDLERS (v8 syntax)
+   WEBHOOK PROCESSOR (v8-compatible)
 ----------------------------------------- */
 
+// Shopify sends all webhook events to this endpoint
 app.post("/webhooks", async (req, res) => {
   try {
     await shopify.webhooks.process(req, res);
@@ -179,21 +179,6 @@ app.post("/webhooks", async (req, res) => {
   }
 });
 
-// Register APP_UNINSTALLED webhook
-shopify.webhooks.register({
-  session: null,
-  topic: "APP_UNINSTALLED",
-  deliveryMethod: "http",
-  address: `${process.env.SHOPIFY_APP_URL}/webhooks`,
-});
-
-// Register THEMES_PUBLISH webhook
-shopify.webhooks.register({
-  session: null,
-  topic: "THEMES_PUBLISH",
-  deliveryMethod: "http",
-  address: `${process.env.SHOPIFY_APP_URL}/webhooks`,
-});
 
 
 /* ----------------------------------------
