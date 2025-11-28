@@ -2,31 +2,35 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import serveStatic from "serve-static";
 
 import { shopifyApp } from "@shopify/shopify-app-express";
-import { BillingInterval, LATEST_API_VERSION } from "@shopify/shopify-api";
+import {
+  BillingInterval,
+  LATEST_API_VERSION,
+} from "@shopify/shopify-api";
 
 import { PrismaClient } from "@prisma/client";
 
 import stickyAnalytics from "./routes/stickyAnalytics.js";
 import stickyMetrics from "./routes/stickyMetrics.js";
+
+// Webhooks
 import checkoutCreateWebhook from "./webhooks/checkoutCreate.js";
 import ordersPaidWebhook from "./webhooks/ordersPaid.js";
 
-/* ---------------------------------------------
+/* --------------------------------------------------
    EXPRESS + PATH SETUP
-----------------------------------------------*/
+-------------------------------------------------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const prisma = new PrismaClient();
 const app = express();
+const prisma = new PrismaClient();
 app.use(express.json());
 
-/* ---------------------------------------------
-   Allow Storefront → Analytics POST
-----------------------------------------------*/
+/* --------------------------------------------------
+   Allow storefront → analytics POST
+-------------------------------------------------- */
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -35,9 +39,9 @@ app.use((req, res, next) => {
   next();
 });
 
-/* ---------------------------------------------
+/* --------------------------------------------------
    Billing Setup
-----------------------------------------------*/
+-------------------------------------------------- */
 const BILLING_PLAN_NAME = "Sticky Add-to-Cart Bar Pro";
 const BILLING_TEST_MODE = process.env.SHOPIFY_BILLING_TEST === "true";
 
@@ -50,18 +54,19 @@ const billingConfig = {
   },
 };
 
-/* ---------------------------------------------
-   Shopify App Init
-----------------------------------------------*/
+/* --------------------------------------------------
+   Shopify App Init (v10)
+-------------------------------------------------- */
 const shopify = shopifyApp({
   api: {
     apiKey: process.env.SHOPIFY_API_KEY,
     apiSecretKey: process.env.SHOPIFY_API_SECRET,
     apiVersion: LATEST_API_VERSION,
-    scopes: (process.env.SCOPES || "read_products,write_products")
-      .split(",")
-      .map((s) => s.trim()),
-    hostName: (process.env.HOST || "").replace(/^https?:\/\//, ""),
+    scopes: (process.env.SCOPES ||
+      "read_products,write_products").split(","),
+    hostName: (process.env.HOST || "")
+      .replace(/^https?:\/\//, "")
+      .trim(),
     billing: billingConfig,
   },
 
@@ -79,29 +84,37 @@ const shopify = shopifyApp({
       "THEMES_PUBLISH",
     ],
   },
+
+  // Required for embedded app support
+  sessionStorage: undefined,
 });
 
-/* ---------------------------------------------
+/* --------------------------------------------------
    ANALYTICS SCRIPT INJECTION
-----------------------------------------------*/
+-------------------------------------------------- */
+
 async function injectAnalyticsScript(shop) {
   try {
     const offlineId = shopify.api.session.getOfflineId(shop);
     const session =
       await shopify.config.sessionStorage.loadSession(offlineId);
 
-    if (!session) return;
+    if (!session) {
+      console.warn("⚠ No offline session for", shop);
+      return;
+    }
 
     const client = new shopify.api.clients.Rest({ session });
 
-    // 1) Get themes
+    // 1️⃣ Load themes
     const themesRes = await client.get({ path: "themes" });
     const mainTheme =
       themesRes.body.themes?.find((t) => t.role === "main") ??
       themesRes.body.themes?.[0];
+
     if (!mainTheme) return;
 
-    // 2) Load theme.liquid
+    // 2️⃣ Load layout/theme.liquid
     const assetKey = "layout/theme.liquid";
     const themeFile = await client.get({
       path: `themes/${mainTheme.id}/assets`,
@@ -109,20 +122,25 @@ async function injectAnalyticsScript(shop) {
     });
 
     const layout = themeFile.body.asset?.value || "";
+
     const injectionTag = `<script src="https://sticky-add-to-cart-bar-pro.onrender.com/sticky-analytics.js" defer></script>`;
 
-    // Already inserted?
+    // already exists?
     if (layout.includes("sticky-analytics.js")) return;
 
-    // Insert before </head>
     const updated = layout.includes("</head>")
       ? layout.replace("</head>", `  ${injectionTag}\n</head>`)
-      : `${layout}\n${injectionTag}`;
+      : `${layout}\n${injectionTag}\n`;
 
-    // 3) Save updated theme.liquid
+    // 3️⃣ Save it
     await client.put({
       path: `themes/${mainTheme.id}/assets`,
-      data: { asset: { key: assetKey, value: updated } },
+      data: {
+        asset: {
+          key: assetKey,
+          value: updated,
+        },
+      },
     });
 
     console.log(`🌟 Analytics injected → ${shop}`);
@@ -131,44 +149,45 @@ async function injectAnalyticsScript(shop) {
   }
 }
 
-/* ---------------------------------------------
+/* --------------------------------------------------
    WEBHOOK ENDPOINT (v10)
-----------------------------------------------*/
+-------------------------------------------------- */
 app.post("/webhooks", async (req, res) => {
   try {
     const result = await shopify.webhooks.process(req, res);
 
-    if (!result) return;
-
-    /* Theme Publish → Reinjection */
+    // Theme publish → reinject analytics
     if (
-      result.topic === "THEMES_PUBLISH" ||
-      result.topic === "themes/publish"
+      result?.topic === "themes/publish" ||
+      result?.topic === "THEMES_PUBLISH"
     ) {
+      console.log("♻ Theme published: reinjecting analytics");
       await injectAnalyticsScript(result.shop);
     }
 
-    /* App Uninstall Cleanup */
+    // App uninstall → cleanup analytics
     if (
-      result.topic === "APP_UNINSTALLED" ||
-      result.topic === "app/uninstalled"
+      result?.topic === "app/uninstalled" ||
+      result?.topic === "APP_UNINSTALLED"
     ) {
+      console.log("🧹 App uninstalled from", result.shop);
       await prisma.stickyEvent.deleteMany({
         where: { shop: result.shop },
       });
     }
   } catch (err) {
     console.error("❌ Webhook error:", err);
-    res.status(500).send("Webhook failed");
+    res.status(500).send("Webhook error");
   }
 });
 
-/* ---------------------------------------------
-   Billing Middleware
-----------------------------------------------*/
+/* --------------------------------------------------
+   BILLING MIDDLEWARE
+-------------------------------------------------- */
 async function requireBilling(req, res, next) {
   try {
     const session = res.locals.shopify?.session;
+
     if (!session) {
       const shop = req.query.shop;
       return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
@@ -199,9 +218,9 @@ async function requireBilling(req, res, next) {
   }
 }
 
-/* ---------------------------------------------
-   AUTH ROUTES
-----------------------------------------------*/
+/* --------------------------------------------------
+   OAuth Routes
+-------------------------------------------------- */
 app.get("/auth", shopify.auth.begin());
 
 app.get(
@@ -210,23 +229,20 @@ app.get(
   requireBilling,
   async (req, res) => {
     const session = res.locals.shopify.session;
-    await injectAnalyticsScript(session.shop);
-    res.redirect(`/?shop=${encodeURIComponent(session.shop)}`);
+    const shop = session.shop;
+
+    // auto inject analytics
+    await injectAnalyticsScript(shop);
+
+    res.redirect(`/?shop=${encodeURIComponent(shop)}`);
   }
 );
 
-/* ---------------------------------------------
-   EXITIFRAME ROUTE (Required by Shopify)
-----------------------------------------------*/
-app.get("/exitiframe", (req, res) => {
-  const { shop } = req.query;
-  if (!shop) return res.status(400).send("Missing shop parameter");
-  res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
-});
+/* --------------------------------------------------
+   API ROUTES
+-------------------------------------------------- */
 
-/* ---------------------------------------------
-   PROTECTED ANALYTICS API (Admin Dashboard)
-----------------------------------------------*/
+// Protected analytics dashboard
 app.use(
   "/api/sticky",
   shopify.validateAuthenticatedSession(),
@@ -234,33 +250,29 @@ app.use(
   stickyMetrics
 );
 
-/* ---------------------------------------------
-   PUBLIC STOREFRONT ANALYTICS ENDPOINT
-----------------------------------------------*/
+// Public storefront analytics endpoint
 app.use("/apps/bdm-sticky-atc", stickyAnalytics);
 
-/* ---------------------------------------------
-   SERVE REACT ADMIN UI (frontend/dist)
-----------------------------------------------*/
-app.use(
-  serveStatic(path.join(__dirname, "frontend/dist"), {
-    index: false,
-  })
-);
+/* --------------------------------------------------
+   SERVE FRONTEND (React Embedded Admin)
+-------------------------------------------------- */
 
-/* Root → Load React App */
+const frontendDist = path.join(__dirname, "frontend", "dist");
+app.use(express.static(frontendDist));
+
+// ALL remaining GET routes → serve the React app
 app.get(
-  "/",
+  "*",
   shopify.validateAuthenticatedSession(),
   requireBilling,
-  (req, res) => {
-    res.sendFile(path.join(__dirname, "frontend/dist/index.html"));
+  (_req, res) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
   }
 );
 
-/* ---------------------------------------------
-   START SERVER
-----------------------------------------------*/
+/* --------------------------------------------------
+   Start Server
+-------------------------------------------------- */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
