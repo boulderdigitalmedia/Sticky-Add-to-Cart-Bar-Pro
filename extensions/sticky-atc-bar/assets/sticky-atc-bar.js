@@ -5,7 +5,7 @@
   -----------------------------------------*/
   function sendAnalytics(event, payload = {}) {
     try {
-      fetch("/apps/bdm-sticky-atc/track", {
+      fetch("https://sticky-add-to-cart-bar-pro.onrender.com/apps/bdm-sticky-atc/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
