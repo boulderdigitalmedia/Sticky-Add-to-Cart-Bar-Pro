@@ -179,8 +179,16 @@ async function requireBilling(req, res, next) {
       session,
       plan: BILLING_PLAN_NAME,
       isTest: BILLING_TEST_MODE,
-      returnUrl: `${appUrl}/?shop=${session.shop}`,
+      returnUrl: `${appUrl}/billing/complete?shop=${session.shop}`,
     });
+
+    app.get("/billing/complete", async (req, res) => {
+  const shop = req.query.shop;
+
+  // Shopify has already approved billing at this point
+  // Just redirect into the app normally
+  return res.redirect(`/?shop=${encodeURIComponent(shop)}`);
+});
 
     return res.redirect(confirmationUrl);
   } catch (err) {
