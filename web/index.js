@@ -40,11 +40,8 @@ app.use((req, res, next) => {
    Billing Setup
 -------------------------------------------------- */
 const BILLING_PLAN_NAME = "Sticky Add-to-Cart Bar Pro";
-
-// Set to false for real billing
 const BILLING_TEST_MODE = process.env.SHOPIFY_BILLING_TEST === "true";
 
-/* Shopify billing config (recurring charge) */
 const billingConfig = {
   [BILLING_PLAN_NAME]: {
     amount: 4.99,
@@ -154,15 +151,24 @@ app.post("/webhooks", async (req, res) => {
 });
 
 /* --------------------------------------------------
-   Billing Completion Callback
+   Fix: Billing Completion Redirect (adds host)
 -------------------------------------------------- */
-app.get("/billing/complete", (req, res) => {
+app.get("/billing/complete", async (req, res) => {
   const shop = req.query.shop;
-  return res.redirect(`/?shop=${encodeURIComponent(shop)}`);
+  const host = req.query.host;
+
+  const offlineId = shopify.api.session.getOfflineId(shop);
+  const session = await shopify.config.sessionStorage.loadSession(offlineId);
+
+  const finalHost = host || session?.host;
+
+  return res.redirect(
+    `/?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(finalHost)}`
+  );
 });
 
 /* --------------------------------------------------
-   Billing Middleware (Loop-proof)
+   Billing Middleware
 -------------------------------------------------- */
 async function requireBilling(req, res, next) {
   try {
@@ -183,11 +189,12 @@ async function requireBilling(req, res, next) {
     const appUrl =
       process.env.SHOPIFY_APP_URL || `https://${process.env.HOST}`;
 
+    // Fix: include host in return URL
     const confirmUrl = await shopify.api.billing.request({
       session,
       plan: BILLING_PLAN_NAME,
       isTest: BILLING_TEST_MODE,
-      returnUrl: `${appUrl}/billing/complete?shop=${session.shop}`,
+      returnUrl: `${appUrl}/billing/complete?shop=${session.shop}&host=${session.host}`,
     });
 
     return res.redirect(confirmUrl);
@@ -199,17 +206,34 @@ async function requireBilling(req, res, next) {
 }
 
 /* --------------------------------------------------
-   OAuth Routes
+   OAuth Routes w/ Host Persistence
 -------------------------------------------------- */
 app.get("/auth", shopify.auth.begin());
 
 app.get(
   "/auth/callback",
   shopify.auth.callback(),
+
+  // Fix: save host to session
+  async (req, res, next) => {
+    const session = res.locals.shopify.session;
+
+    if (req.query.host) {
+      session.host = req.query.host;
+      await shopify.config.sessionStorage.storeSession(session);
+    }
+
+    next();
+  },
+
   requireBilling,
+
   async (req, res) => {
     await injectAnalyticsScript(res.locals.shopify.session.shop);
-    return res.redirect(`/?shop=${res.locals.shopify.session.shop}`);
+
+    return res.redirect(
+      `/?shop=${res.locals.shopify.session.shop}&host=${res.locals.shopify.session.host}`
+    );
   }
 );
 
