@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview --host"
   },
   "dependencies": {
-    "@shopify/polaris": "^12.0.0",
     "@shopify/app-bridge-react": "^4.1.0",
+    "@shopify/polaris": "^12.0.0",
+    "@shopify/react-router": "^1.0.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
