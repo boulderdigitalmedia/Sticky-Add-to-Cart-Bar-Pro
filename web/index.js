@@ -272,15 +272,14 @@ app.use(
 app.use("/apps/bdm-sticky-atc", stickyAnalytics);
 
 /* --------------------------------------------------
-   Serve React Admin UI (dist)
+   Serve static assets for the frontend (unprotected)
+   (JS/CSS/etc from Vite's dist folder)
 -------------------------------------------------- */
-app.use(
-  shopify.ensureInstalledOnShop(),
-  express.static(frontendDist)
-);
+app.use(express.static(frontendDist));
 
 /* --------------------------------------------------
-   Catch-All → Embedded App Entry
+   Catch-All → Embedded App Entry (protected)
+   Only the HTML shell is gated by ensureInstalledOnShop
 -------------------------------------------------- */
 app.get(
   "/*",
