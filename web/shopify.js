@@ -1,4 +1,5 @@
 // web/shopify.js
+import "@shopify/shopify-api/adapters/node"; // 👈 IMPORTANT: runtime adapter
 import { shopifyApi, LATEST_API_VERSION } from "@shopify/shopify-api";
 import pkg from "@shopify/shopify-app-express";
 const { shopifyApp } = pkg;
@@ -25,7 +26,6 @@ const shopify = shopifyApp({
     path: "/webhooks",
   },
 
-  // Billing is optional but you have it enabled
   billing: billingConfig,
 });
 
