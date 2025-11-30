@@ -1,3 +1,4 @@
+// web/frontend/src/App.jsx
 import React from "react";
 import { Frame, TopBar, Page } from "@shopify/polaris";
 import AppNavigation from "./navigation.jsx";
