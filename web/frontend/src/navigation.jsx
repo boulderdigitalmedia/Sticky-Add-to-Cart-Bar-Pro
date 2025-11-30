@@ -1,6 +1,6 @@
 // web/frontend/src/navigation.jsx
 import { Navigation } from "@shopify/polaris";
-import { HomeIcon, ChartBarIcon } from "@shopify/polaris-icons";
+import { HomeIcon } from "@shopify/polaris-icons";
 
 export default function AppNavigation() {
   return (
@@ -14,7 +14,8 @@ export default function AppNavigation() {
           },
           {
             label: "Analytics",
-            icon: ChartBarIcon,
+            // reuse HomeIcon for now; you can swap to another valid icon later
+            icon: HomeIcon,
             url: "/analytics",
           },
         ]}
