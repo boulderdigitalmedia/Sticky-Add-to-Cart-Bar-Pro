@@ -1,8 +1,6 @@
+// web/frontend/src/navigation.jsx
 import { Navigation } from "@shopify/polaris";
-import {
-  HomeIcon,
-  ChartBarIcon,
-} from "@shopify/polaris-icons";
+import { HomeIcon, ChartBarIcon } from "@shopify/polaris-icons";
 
 export default function AppNavigation() {
   return (
