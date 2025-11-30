@@ -1,11 +1,13 @@
-import { Routes, Route } from "react-router-dom";
-import AnalyticsPage from "./pages/Analytics.jsx";
+import React from "react";
+import { Routes, Route } from "@shopify/react-router";
+import Home from "./pages/Home.jsx";
+import Analytics from "./pages/Analytics.jsx";
 
-export default function AppRoutes() {
+export default function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<AnalyticsPage />} />
-      <Route path="/analytics" element={<AnalyticsPage />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/analytics" element={<Analytics />} />
     </Routes>
   );
 }
