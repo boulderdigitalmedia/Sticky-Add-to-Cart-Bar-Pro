@@ -1,15 +1,20 @@
 import React from "react";
-import { Page, Card, Text } from "@shopify/polaris";
+import { Page } from "@shopify/polaris";
 import AppRouter from "./router.jsx";
-import AppNavigation from "./navigation.jsx";
+import Navigation from "./navigation.jsx";
 
 export default function App() {
   return (
-    <Page>
-      <AppNavigation />
-      <Card sectioned>
-        <AppRouter />
-      </Card>
+    <Page fullWidth>
+      <div style={{ display: "flex" }}>
+        <div style={{ width: 240 }}>
+          <Navigation />
+        </div>
+
+        <div style={{ flex: 1, padding: "20px" }}>
+          <AppRouter />
+        </div>
+      </div>
     </Page>
   );
 }
