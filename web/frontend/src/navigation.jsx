@@ -1,4 +1,3 @@
-// web/frontend/src/navigation.jsx
 import { Navigation } from "@shopify/polaris";
 import { HomeIcon } from "@shopify/polaris-icons";
 
@@ -14,7 +13,7 @@ export default function AppNavigation() {
           },
           {
             label: "Analytics",
-            icon: HomeIcon, // placeholder
+            icon: HomeIcon,
             url: "/analytics",
           },
         ]}
