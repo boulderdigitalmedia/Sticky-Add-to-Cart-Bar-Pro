@@ -5,7 +5,7 @@
   "type": "module",
   "dependencies": {
     "@shopify/app-bridge-react": "^3.7.2",
-    "@shopify/polaris": "^12.28.0",
+    "@shopify/polaris": "^12.29.2",
     "@shopify/polaris-icons": "^7.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
