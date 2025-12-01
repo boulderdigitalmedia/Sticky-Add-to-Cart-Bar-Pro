@@ -1,4 +1,4 @@
-import { Card, Text } from "@shopify/polaris";
+import { Page, Card, Text } from "@shopify/polaris";
 import React from "react";
 
 export default function Home() {
