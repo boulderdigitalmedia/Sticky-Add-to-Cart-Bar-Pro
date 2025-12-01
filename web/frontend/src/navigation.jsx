@@ -14,8 +14,7 @@ export default function AppNavigation() {
           },
           {
             label: "Analytics",
-            // reuse HomeIcon for now; you can swap to another valid icon later
-            icon: HomeIcon,
+            icon: HomeIcon, // placeholder
             url: "/analytics",
           },
         ]}
