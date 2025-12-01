@@ -1,13 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
-import Providers from "./providers.jsx";
-import "@shopify/polaris/build/esm/styles.css";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <Providers>
-      <App />
-    </Providers>
-  </React.StrictMode>
+import Providers from "./providers.jsx";
+import App from "./App.jsx";
+
+ReactDOM.createRoot(document.getElementById("app")).render(
+  <Providers>
+    <App />
+  </Providers>
 );
