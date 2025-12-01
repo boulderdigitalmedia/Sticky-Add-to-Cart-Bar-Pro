@@ -3,6 +3,7 @@ import React from "react";
 
 export default function Analytics() {
   return (
+<page>
     <Card>
       <Card.Section>
         <Text as="h2" variant="headingLg">
@@ -11,5 +12,6 @@ export default function Analytics() {
         <Text as="p">Your sticky ATC analytics will appear here.</Text>
       </Card.Section>
     </Card>
+  </page>
   );
 }
