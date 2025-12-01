@@ -2,20 +2,22 @@
   "name": "bdm-sticky-atc-frontend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "dependencies": {
+    "@shopify/app-bridge-react": "^3.7.2",
+    "@shopify/polaris": "^12.28.0",
+    "@shopify/polaris-icons": "^7.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.22.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.4.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@shopify/polaris": "^12.21.0",
-    "@shopify/polaris-icons": "^7.4.0",
-    "react-router-dom": "^6.22.0"
-  },
-  "devDependencies": {
-    "vite": "^5.2.0",
-    "@vitejs/plugin-react": "^4.2.0"
   }
 }
