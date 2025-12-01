@@ -1,4 +1,3 @@
-// web/frontend/src/providers.jsx
 import React from "react";
 import { AppProvider as PolarisProvider } from "@shopify/polaris";
 import enTranslations from "@shopify/polaris/locales/en.json";
