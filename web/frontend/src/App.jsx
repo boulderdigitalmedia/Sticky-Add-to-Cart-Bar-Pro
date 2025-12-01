@@ -11,7 +11,7 @@ export default function App() {
             It works! 🎉
           </Text>
           <Text as="p">
-            Your Shopify embedded app UI is loading correctly. From here, we can
+            Your Shopify embedded app UI is loading correctly. From here we can
             wire up navigation, routing, and analytics.
           </Text>
         </Card.Section>
